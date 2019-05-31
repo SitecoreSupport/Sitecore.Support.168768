@@ -40,7 +40,7 @@ namespace Sitecore.Support.Shell.Client.Applications.Marketing.Utilities.DeployM
 
         [HttpPost]
         [ActionName("DeployDefinitions")]
-        public virtual async Task<ActionResult> DeployDefinitions(
+        public virtual ActionResult DeployDefinitions(
             string definitionTypes,
             bool publishTaxonomies)
         {
@@ -51,13 +51,15 @@ namespace Sitecore.Support.Shell.Client.Applications.Marketing.Utilities.DeployM
 
             var siteName = Sitecore.Client.Site.Name;
 
-            await DeployDefinitionTypes(JsonConvert.DeserializeObject<string[]>(definitionTypes));
+            //await DeployDefinitionTypes(JsonConvert.DeserializeObject<string[]>(definitionTypes));
 
-            var str = string.Empty;
-            if (publishTaxonomies)
-            {
-                str = StartTaxonomiesDeploymentJob(siteName).Name;
-            }
+            //if (publishTaxonomies)
+            //{
+            //    str = StartTaxonomiesDeploymentJob(siteName).Name;
+            //}
+
+            var str = StartDefinitionsDeploymentJob(JsonConvert.DeserializeObject<string[]>(definitionTypes),
+                publishTaxonomies, siteName).Name;
 
             return Json(new
             {
@@ -82,14 +84,16 @@ namespace Sitecore.Support.Shell.Client.Applications.Marketing.Utilities.DeployM
             {
                 return Json(new
                 {
-                    completed = false
+                    completed = false,
+                    error = job.Status.Failed
                 }, JsonRequestBehavior.AllowGet);
             }
 
             Log.Debug("All taxonomies were deployed.");
             return Json(new
             {
-                completed = true
+                completed = true,
+                error = job.Status.Failed
             }, JsonRequestBehavior.AllowGet);
         }
 
@@ -135,23 +139,49 @@ namespace Sitecore.Support.Shell.Client.Applications.Marketing.Utilities.DeployM
             }
         }
 
-        protected virtual Job StartTaxonomiesDeploymentJob()
-        {
-            return StartTaxonomiesDeploymentJob(Sitecore.Client.Site.Name);
-        }
+        //protected virtual Job StartTaxonomiesDeploymentJob()
+        //{
+        //    return StartTaxonomiesDeploymentJob(Sitecore.Client.Site.Name);
+        //}
 
-        protected virtual Job StartTaxonomiesDeploymentJob(string siteName)
+        protected virtual Job StartDefinitionsDeploymentJob([NotNull] string[] definitionTypes, bool publishTaxonomies,
+            string siteName)
         {
-            var service = ServiceLocator.ServiceProvider.GetService<IDeployManager>();
-            var options = new JobOptions($"Deploy all taxonomies. Deployment job id: {Guid.NewGuid()}.",
-                "Sitecore.Marketing.Client", siteName, service, "Deploy", new object[1]
+            var jobOptions = new JobOptions($"Deploy all definitions. Deployment job id: {Guid.NewGuid()}.",
+                "Sitecore.Marketing.Client", siteName, this, "DeployAllDefinitions", new object[]
                 {
-                    WellKnownIdentifiers.Items.Taxonomies.TaxonomyRootId
+                    definitionTypes,
+                    publishTaxonomies
                 });
 
-            Log.Debug("Starting a job to deploy all taxonomies.");
-
-            return JobManager.Start(options);
+            Log.Debug("Starting a job to deploy all definitions.");
+            return JobManager.Start(jobOptions);
         }
+
+        [UsedImplicitly]
+        private void DeployAllDefinitions([NotNull] string[] definitionTypes, bool publishTaxonomies)
+        {
+            DeployDefinitionTypes(definitionTypes).Wait();
+            if (publishTaxonomies)
+            {
+                var taxonomyDeploymentManager = ServiceLocator.ServiceProvider.GetService<IDeployManager>();
+                taxonomyDeploymentManager.Deploy(WellKnownIdentifiers.Items.Taxonomies.TaxonomyRootId);
+            }
+        }
+
+
+        //protected virtual Job StartTaxonomiesDeploymentJob(string siteName)
+        //{
+        //    var service = ServiceLocator.ServiceProvider.GetService<IDeployManager>();
+        //    var options = new JobOptions($"Deploy all taxonomies. Deployment job id: {Guid.NewGuid()}.",
+        //        "Sitecore.Marketing.Client", siteName, service, "Deploy", new object[1]
+        //        {
+        //            WellKnownIdentifiers.Items.Taxonomies.TaxonomyRootId
+        //        });
+
+        //    Log.Debug("Starting a job to deploy all taxonomies.");
+
+        //    return JobManager.Start(options);
+        //}
     }
 }

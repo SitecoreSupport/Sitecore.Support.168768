@@ -88,7 +88,7 @@
 
                 jQuery.ajax({
                     type: "POST",
-                    url: "/api/sitecore/DeployMarketingDefinitions/DeployDefinitions",
+                    url: "/api/sitecore/SupportDeployMarketingDefinitions/DeployDefinitions",
                     data: {
                         "definitionTypes": JSON.stringify(definitionTypes),
                         "publishTaxonomies":
@@ -120,11 +120,16 @@
                 var deployRequestWithRetries = function(jobName) {
                     jQuery.ajax({
                         type: "POST",
-                        url: "/api/sitecore/DeployMarketingDefinitions/GetDeployDefinitionsJobStatus",
+                        url: "/api/sitecore/SupportDeployMarketingDefinitions/GetDeployDefinitionsJobStatus",
                         data: { "jobName": jobName },
                         success: function(result) {
                             if (result.completed === true) {
-                                showDeploymentComplete();
+								if (result.error === true){
+									showDeploymentError();
+								}
+								else{
+									showDeploymentComplete();
+								}
                             } else {
                                 self.model.set("isBusy", true);
                                 setTimeout(function() { deployRequestWithRetries(jobName); }, 1000);
